@@ -12,7 +12,6 @@ use cortex_m::delay::Delay;
 // The macro for our start-up function
 use cortex_m_rt::entry;
 
-use embedded_time::fixed_point::FixedPoint;
 use hal::clocks::Clock;
 use hal::gpio::Pins;
 use hal::multicore::{Multicore, Stack};
@@ -100,7 +99,7 @@ fn main() -> ! {
     let mut led2 = pins.gpio3.into_push_pull_output();
 
     // Set up the delay for the first core.
-    let sys_freq = clocks.system_clock.freq().integer();
+    let sys_freq = clocks.system_clock.freq().to_Hz();
     let mut delay = Delay::new(core.SYST, sys_freq);
 
     // Start up the second core to blink the second LED

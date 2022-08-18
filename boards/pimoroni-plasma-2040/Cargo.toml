@@ -30,3 +30,9 @@ defmt-rtt = "0.3.0"
 default = ["boot2", "rt"]
 boot2 = ["rp2040-boot2"]
 rt = ["cortex-m-rt","rp2040-hal/rt"]
+
+defmt = []
+
+[[example]]
+name = "pimoroni_plasma_2040_blinky"
+required-features = ["defmt"]

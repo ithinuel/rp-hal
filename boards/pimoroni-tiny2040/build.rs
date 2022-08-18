@@ -2,5 +2,7 @@
 //! for the examples.
 
 fn main() {
-    println!("cargo:rustc-link-arg-examples=-Tdefmt.x");
+    if cfg!(feature = "defmt") {
+        println!("cargo:rustc-link-arg-examples=-Tdefmt.x");
+    }
 }

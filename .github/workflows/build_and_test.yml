@@ -6,8 +6,10 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        features: ["", "--features eh1_0_alpha", "--features chrono", "--features rp2040-e5"]
+        features: ["", "--features eh1_0_alpha", "--features chrono", "--features rp2040-e5", "--features defmt"]
         mode: ["", "--release"]
+    env:
+      DEFMT_LOG: "trace"
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1

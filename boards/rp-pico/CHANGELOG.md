@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `rp2040-e5` feature enabling the workaround for errata 5 on the USB device peripheral.
+- Added `defmt` feature to gate the inclusion of `defmt.x`
 
 ### Changed
 
-- None
+- Require the `defmt` feature to be enabled for the pio_pwm and spi_sd_card examples to build.
 
 ## 0.4.0 - 2022-06-13
 

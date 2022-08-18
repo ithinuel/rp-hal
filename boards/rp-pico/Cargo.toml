@@ -45,3 +45,12 @@ default = ["boot2", "rt"]
 boot2 = ["rp2040-boot2"]
 rt = ["cortex-m-rt","rp2040-hal/rt"]
 rp2040-e5 = ["rp2040-hal/rp2040-e5"]
+defmt = []
+
+[[example]]
+name = "pico_pio_pwm"
+required-features = [ "defmt" ]
+
+[[example]]
+name = "pico_spi_sd_card"
+required-features = [ "defmt" ]

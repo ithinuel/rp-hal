@@ -57,7 +57,7 @@ fn main() -> ! {
     let div = 256f32;
 
     let installed = pio.install(&program.program).unwrap();
-    let (mut sm0, _, _) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+    let (mut sm0, _, _) = rp2040_hal::pio::PIOBuilder::from_program(&installed)
         .set_pins(pin0, 1)
         .clock_divisor(div)
         .build(sm0);
@@ -67,7 +67,7 @@ fn main() -> ! {
     // NOTE: with the current rp-hal, I need to call pio.install() twice. This
     // should be investigated further as it seems wrong.
     let installed = pio.install(&program.program).unwrap();
-    let (mut sm1, _, _) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+    let (mut sm1, _, _) = rp2040_hal::pio::PIOBuilder::from_program(&installed)
         .set_pins(pin1, 1)
         .clock_divisor(div)
         .build(sm1);

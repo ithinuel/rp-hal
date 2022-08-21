@@ -27,6 +27,12 @@ members = [
 rp2040-hal = { path = "./rp2040-hal" }
 
 [patch.crates-io]
+<<<<<<< Updated upstream
+rp2040-hal = { path = "./rp2040-hal" }
+i2c-pio = { git = "https://github.com/rp-rs/i2c-pio-rs" }
+ws2812-pio = { git = "https://github.com/rp-rs/ws2812-pio-rs" }
+=======
 rp2040-hal = { path ="./rp2040-hal" }
 i2c-pio = { path ="../i2c-pio-rs" }
 ws2812-pio = { path ="../ws2812-pio-rs" }
+>>>>>>> Stashed changes

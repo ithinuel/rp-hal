@@ -502,9 +502,9 @@ impl<SM: ValidStateMachine> UninitStateMachine<SM> {
 }
 
 /// PIO State Machine with an associated program.
-pub struct StateMachine<SM: ValidStateMachine, State> {
+pub struct StateMachine<'program, SM: ValidStateMachine, State> {
     sm: UninitStateMachine<SM>,
-    program: InstalledProgram<SM::PIO>,
+    program: &'program InstalledProgram<SM::PIO>,
     _phantom: core::marker::PhantomData<State>,
 }
 
@@ -513,18 +513,14 @@ pub struct Stopped;
 /// Marker for an initialized and running state machine.
 pub struct Running;
 
-impl<SM: ValidStateMachine, State> StateMachine<SM, State> {
+impl<SM: ValidStateMachine, State> StateMachine<'_, SM, State> {
     /// Stops the state machine if it is still running and returns its program.
     ///
     /// The program can be uninstalled to free space once it is no longer used by any state
     /// machine.
-    pub fn uninit(
-        mut self,
-        _rx: Rx<SM>,
-        _tx: Tx<SM>,
-    ) -> (UninitStateMachine<SM>, InstalledProgram<SM::PIO>) {
+    pub fn uninit(mut self, _rx: Rx<SM>, _tx: Tx<SM>) -> UninitStateMachine<SM> {
         self.sm.set_enabled(false);
-        (self.sm, self.program)
+        self.sm
     }
 
     /// The address of the instruction currently being executed.
@@ -555,13 +551,13 @@ impl<SM: ValidStateMachine, State> StateMachine<SM, State> {
 }
 
 // Safety: All shared register accesses are atomic.
-unsafe impl<SM: ValidStateMachine + Send, State> Send for StateMachine<SM, State> {}
+unsafe impl<SM: ValidStateMachine + Send, State> Send for StateMachine<'_, SM, State> {}
 
 // Safety: `StateMachine` is marked Send so ensure all accesses remain atomic and no new concurrent
 // accesses are added.
-impl<SM: ValidStateMachine> StateMachine<SM, Stopped> {
+impl<'prg, SM: ValidStateMachine> StateMachine<'prg, SM, Stopped> {
     /// Starts execution of the selected program.
-    pub fn start(mut self) -> StateMachine<SM, Running> {
+    pub fn start(mut self) -> StateMachine<'prg, SM, Running> {
         // Enable SM
         self.sm.set_enabled(true);
 
@@ -647,7 +643,7 @@ impl<SM: ValidStateMachine> StateMachine<SM, Stopped> {
     }
 }
 
-impl<P: PIOExt, SM: StateMachineIndex> StateMachine<(P, SM), Stopped> {
+impl<'prg, P: PIOExt, SM: StateMachineIndex> StateMachine<'prg, (P, SM), Stopped> {
     /// Restarts the clock dividers for the specified state machines.
     ///
     /// As a result, the clock will be synchronous for the state machines, which is a precondition
@@ -664,18 +660,18 @@ impl<P: PIOExt, SM: StateMachineIndex> StateMachine<(P, SM), Stopped> {
     pub fn synchronize_with<'sm, SM2: StateMachineIndex>(
         &'sm mut self,
         _other_sm: &'sm mut StateMachine<(P, SM2), Stopped>,
-    ) -> Synchronize<'sm, (P, SM)> {
+    ) -> Synchronize<'sm, 'prg, (P, SM)> {
         let sm_mask = (1 << SM::id()) | (1 << SM2::id());
         Synchronize { sm: self, sm_mask }
     }
 }
 
-impl<P: PIOExt, SM: StateMachineIndex, State> StateMachine<(P, SM), State> {
+impl<'prg1, P: PIOExt, SM: StateMachineIndex, State> StateMachine<'prg1, (P, SM), State> {
     /// Create a group of state machines, which can be started/stopped synchronously
-    pub fn with<SM2: StateMachineIndex>(
+    pub fn with<'prg2, SM2: StateMachineIndex>(
         self,
-        other_sm: StateMachine<(P, SM2), State>,
-    ) -> StateMachineGroup2<P, SM, SM2, State> {
+        other_sm: StateMachine<'prg2, (P, SM2), State>,
+    ) -> StateMachineGroup2<'prg1, 'prg2, P, SM, SM2, State> {
         StateMachineGroup2 {
             sm1: self,
             sm2: other_sm,
@@ -685,30 +681,39 @@ impl<P: PIOExt, SM: StateMachineIndex, State> StateMachine<(P, SM), State> {
 
 /// Group of 2 state machines, which can be started/stopped synchronously.
 pub struct StateMachineGroup2<
+    'prg1,
+    'prg2,
     P: PIOExt,
     SM1Idx: StateMachineIndex,
     SM2Idx: StateMachineIndex,
     State,
 > {
-    sm1: StateMachine<(P, SM1Idx), State>,
-    sm2: StateMachine<(P, SM2Idx), State>,
+    sm1: StateMachine<'prg1, (P, SM1Idx), State>,
+    sm2: StateMachine<'prg2, (P, SM2Idx), State>,
 }
 
 /// Group of 3 state machines, which can be started/stopped synchronously.
 pub struct StateMachineGroup3<
+    'prg1,
+    'prg2,
+    'prg3,
     P: PIOExt,
     SM1Idx: StateMachineIndex,
     SM2Idx: StateMachineIndex,
     SM3Idx: StateMachineIndex,
     State,
 > {
-    sm1: StateMachine<(P, SM1Idx), State>,
-    sm2: StateMachine<(P, SM2Idx), State>,
-    sm3: StateMachine<(P, SM3Idx), State>,
+    sm1: StateMachine<'prg1, (P, SM1Idx), State>,
+    sm2: StateMachine<'prg2, (P, SM2Idx), State>,
+    sm3: StateMachine<'prg3, (P, SM3Idx), State>,
 }
 
 /// Group of 4 state machines, which can be started/stopped synchronously.
 pub struct StateMachineGroup4<
+    'prg1,
+    'prg2,
+    'prg3,
+    'prg4,
     P: PIOExt,
     SM1Idx: StateMachineIndex,
     SM2Idx: StateMachineIndex,
@@ -716,31 +721,31 @@ pub struct StateMachineGroup4<
     SM4Idx: StateMachineIndex,
     State,
 > {
-    sm1: StateMachine<(P, SM1Idx), State>,
-    sm2: StateMachine<(P, SM2Idx), State>,
-    sm3: StateMachine<(P, SM3Idx), State>,
-    sm4: StateMachine<(P, SM4Idx), State>,
+    sm1: StateMachine<'prg1, (P, SM1Idx), State>,
+    sm2: StateMachine<'prg2, (P, SM2Idx), State>,
+    sm3: StateMachine<'prg3, (P, SM3Idx), State>,
+    sm4: StateMachine<'prg4, (P, SM4Idx), State>,
 }
 
-impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex, State>
-    StateMachineGroup2<P, SM1Idx, SM2Idx, State>
+impl<'prg1, 'prg2, P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex, State>
+    StateMachineGroup2<'prg1, 'prg2, P, SM1Idx, SM2Idx, State>
 {
     /// Split the group, releasing the contained state machines
     #[allow(clippy::type_complexity)]
     pub fn free(
         self,
     ) -> (
-        StateMachine<(P, SM1Idx), State>,
-        StateMachine<(P, SM2Idx), State>,
+        StateMachine<'prg1, (P, SM1Idx), State>,
+        StateMachine<'prg2, (P, SM2Idx), State>,
     ) {
         (self.sm1, self.sm2)
     }
 
     /// Add another state machine to the group
-    pub fn with<SM3Idx: StateMachineIndex>(
+    pub fn with<'prg3, SM3Idx: StateMachineIndex>(
         self,
-        other_sm: StateMachine<(P, SM3Idx), State>,
-    ) -> StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, State> {
+        other_sm: StateMachine<'prg3, (P, SM3Idx), State>,
+    ) -> StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, State> {
         StateMachineGroup3 {
             sm1: self.sm1,
             sm2: self.sm2,
@@ -754,30 +759,34 @@ impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex, State>
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
         State,
-    > StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, State>
+    > StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, State>
 {
     /// Split the group, releasing the contained state machines
     #[allow(clippy::type_complexity)]
     pub fn free(
         self,
     ) -> (
-        StateMachine<(P, SM1Idx), State>,
-        StateMachine<(P, SM2Idx), State>,
-        StateMachine<(P, SM3Idx), State>,
+        StateMachine<'prg1, (P, SM1Idx), State>,
+        StateMachine<'prg2, (P, SM2Idx), State>,
+        StateMachine<'prg3, (P, SM3Idx), State>,
     ) {
         (self.sm1, self.sm2, self.sm3)
     }
 
     /// Add another state machine to the group
-    pub fn with<SM4Idx: StateMachineIndex>(
+    pub fn with<'prg4, SM4Idx: StateMachineIndex>(
         self,
-        other_sm: StateMachine<(P, SM4Idx), State>,
-    ) -> StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, State> {
+        other_sm: StateMachine<'prg4, (P, SM4Idx), State>,
+    ) -> StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, State>
+    {
         StateMachineGroup4 {
             sm1: self.sm1,
             sm2: self.sm2,
@@ -792,23 +801,27 @@ impl<
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
+        'prg4,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
         SM4Idx: StateMachineIndex,
         State,
-    > StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, State>
+    > StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, State>
 {
     /// Split the group, releasing the contained state machines
     #[allow(clippy::type_complexity)]
     pub fn free(
         self,
     ) -> (
-        StateMachine<(P, SM1Idx), State>,
-        StateMachine<(P, SM2Idx), State>,
-        StateMachine<(P, SM3Idx), State>,
-        StateMachine<(P, SM4Idx), State>,
+        StateMachine<'prg1, (P, SM1Idx), State>,
+        StateMachine<'prg2, (P, SM2Idx), State>,
+        StateMachine<'prg3, (P, SM3Idx), State>,
+        StateMachine<'prg4, (P, SM4Idx), State>,
     ) {
         (self.sm1, self.sm2, self.sm3, self.sm4)
     }
@@ -818,11 +831,11 @@ impl<
     }
 }
 
-impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
-    StateMachineGroup2<P, SM1Idx, SM2Idx, Stopped>
+impl<'prg1, 'prg2, P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
+    StateMachineGroup2<'prg1, 'prg2, P, SM1Idx, SM2Idx, Stopped>
 {
     /// Start grouped state machines
-    pub fn start(mut self) -> StateMachineGroup2<P, SM1Idx, SM2Idx, Running> {
+    pub fn start(mut self) -> StateMachineGroup2<'prg1, 'prg2, P, SM1Idx, SM2Idx, Running> {
         self.sm1.sm.set_ctrl_bits(self.mask());
         StateMachineGroup2 {
             sm1: StateMachine {
@@ -846,14 +859,19 @@ impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
-    > StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, Stopped>
+    > StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, Stopped>
 {
     /// Start grouped state machines
-    pub fn start(mut self) -> StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, Running> {
+    pub fn start(
+        mut self,
+    ) -> StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, Running> {
         self.sm1.sm.set_ctrl_bits(self.mask());
         StateMachineGroup3 {
             sm1: StateMachine {
@@ -882,15 +900,22 @@ impl<
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
+        'prg4,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
         SM4Idx: StateMachineIndex,
-    > StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Stopped>
+    > StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Stopped>
 {
     /// Start grouped state machines
-    pub fn start(mut self) -> StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Running> {
+    pub fn start(
+        mut self,
+    ) -> StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Running>
+    {
         self.sm1.sm.set_ctrl_bits(self.mask());
         StateMachineGroup4 {
             sm1: StateMachine {
@@ -923,11 +948,11 @@ impl<
     }
 }
 
-impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
-    StateMachineGroup2<P, SM1Idx, SM2Idx, Running>
+impl<'prg1, 'prg2, P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
+    StateMachineGroup2<'prg1, 'prg2, P, SM1Idx, SM2Idx, Running>
 {
     /// Stop grouped state machines
-    pub fn stop(mut self) -> StateMachineGroup2<P, SM1Idx, SM2Idx, Stopped> {
+    pub fn stop(mut self) -> StateMachineGroup2<'prg1, 'prg2, P, SM1Idx, SM2Idx, Stopped> {
         self.sm1.sm.clear_ctrl_bits(self.mask());
         StateMachineGroup2 {
             sm1: StateMachine {
@@ -945,14 +970,19 @@ impl<P: PIOExt, SM1Idx: StateMachineIndex, SM2Idx: StateMachineIndex>
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
-    > StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, Running>
+    > StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, Running>
 {
     /// Stop grouped state machines
-    pub fn stop(mut self) -> StateMachineGroup3<P, SM1Idx, SM2Idx, SM3Idx, Stopped> {
+    pub fn stop(
+        mut self,
+    ) -> StateMachineGroup3<'prg1, 'prg2, 'prg3, P, SM1Idx, SM2Idx, SM3Idx, Stopped> {
         self.sm1.sm.clear_ctrl_bits(self.mask());
         StateMachineGroup3 {
             sm1: StateMachine {
@@ -975,15 +1005,22 @@ impl<
 }
 
 impl<
+        'prg1,
+        'prg2,
+        'prg3,
+        'prg4,
         P: PIOExt,
         SM1Idx: StateMachineIndex,
         SM2Idx: StateMachineIndex,
         SM3Idx: StateMachineIndex,
         SM4Idx: StateMachineIndex,
-    > StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Running>
+    > StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Running>
 {
     /// Stop grouped state machines
-    pub fn stop(mut self) -> StateMachineGroup4<P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Stopped> {
+    pub fn stop(
+        mut self,
+    ) -> StateMachineGroup4<'prg1, 'prg2, 'prg3, 'prg4, P, SM1Idx, SM2Idx, SM3Idx, SM4Idx, Stopped>
+    {
         self.sm1.sm.clear_ctrl_bits(self.mask());
         StateMachineGroup4 {
             sm1: StateMachine {
@@ -1018,12 +1055,12 @@ impl<
 
 /// Type which, once destructed, restarts the clock dividers for all selected state machines,
 /// effectively synchronizing them.
-pub struct Synchronize<'sm, SM: ValidStateMachine> {
-    sm: &'sm mut StateMachine<SM, Stopped>,
+pub struct Synchronize<'sm, 'prg, SM: ValidStateMachine> {
+    sm: &'sm mut StateMachine<'prg, SM, Stopped>,
     sm_mask: u32,
 }
 
-impl<'sm, P: PIOExt, SM: StateMachineIndex> Synchronize<'sm, (P, SM)> {
+impl<'sm, P: PIOExt, SM: StateMachineIndex> Synchronize<'sm, '_, (P, SM)> {
     /// Adds another state machine to be synchronized.
     pub fn and_with<SM2: StateMachineIndex>(
         mut self,
@@ -1035,7 +1072,7 @@ impl<'sm, P: PIOExt, SM: StateMachineIndex> Synchronize<'sm, (P, SM)> {
     }
 }
 
-impl<'sm, SM: ValidStateMachine> Drop for Synchronize<'sm, SM> {
+impl<'sm, SM: ValidStateMachine> Drop for Synchronize<'sm, '_, SM> {
     fn drop(&mut self) {
         // Restart the clocks of all state machines specified by the mask.
         // Bits 11:8 of CTRL contain CLKDIV_RESTART.
@@ -1047,9 +1084,9 @@ impl<'sm, SM: ValidStateMachine> Drop for Synchronize<'sm, SM> {
     }
 }
 
-impl<SM: ValidStateMachine> StateMachine<SM, Running> {
+impl<'prg, SM: ValidStateMachine> StateMachine<'prg, SM, Running> {
     /// Stops execution of the selected program.
-    pub fn stop(mut self) -> StateMachine<SM, Stopped> {
+    pub fn stop(mut self) -> StateMachine<'prg, SM, Stopped> {
         // Enable SM
         self.sm.set_enabled(false);
 
@@ -1609,12 +1646,12 @@ impl ShiftDirection {
 /// Builder to deploy a fully configured PIO program on one of the state
 /// machines.
 #[derive(Debug)]
-pub struct PIOBuilder<P> {
+pub struct PIOBuilder<'prg, P> {
     /// Clock divisor.
     clock_divisor: f32,
 
     /// Program location and configuration.
-    program: InstalledProgram<P>,
+    program: &'prg InstalledProgram<P>,
     /// GPIO pin used by `jmp pin` instruction.
     jmp_pin: u8,
 
@@ -1675,10 +1712,10 @@ pub enum InstallError {
     NoSpace,
 }
 
-impl<P: PIOExt> PIOBuilder<P> {
+impl<'prg, P: PIOExt> PIOBuilder<'prg, P> {
     /// Set config settings based on information from the given [`pio::Program`].
     /// Additional configuration may be needed in addition to this.
-    pub fn from_program(p: InstalledProgram<P>) -> Self {
+    pub fn from_program(p: &'prg InstalledProgram<P>) -> Self {
         PIOBuilder {
             clock_divisor: 1.0,
             program: p,
@@ -1837,7 +1874,11 @@ impl<P: PIOExt> PIOBuilder<P> {
     pub fn build<SM: StateMachineIndex>(
         self,
         mut sm: UninitStateMachine<(P, SM)>,
-    ) -> (StateMachine<(P, SM), Stopped>, Rx<(P, SM)>, Tx<(P, SM)>) {
+    ) -> (
+        StateMachine<'prg, (P, SM), Stopped>,
+        Rx<(P, SM)>,
+        Tx<(P, SM)>,
+    ) {
         let offset = self.program.offset;
 
         // Stop the SM

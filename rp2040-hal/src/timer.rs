@@ -8,13 +8,25 @@
 //!
 //! See [Chapter 4 Section 6](https://datasheets.raspberrypi.org/rp2040/rp2040_datasheet.pdf) of the datasheet for more details.
 
-use fugit::{Duration, MicrosDurationU64};
+use fugit::{Duration, MicrosDurationU64, TimerInstantU64};
 
 use crate::atomic_register_access::{write_bitmask_clear, write_bitmask_set};
 use crate::pac::{RESETS, TIMER};
 use crate::resets::SubsystemReset;
 use core::marker::PhantomData;
 
+fn get_counter(timer: &crate::pac::timer::RegisterBlock) -> TimerInstantU64<1_000_000> {
+    let mut hi0 = timer.timerawh.read().bits();
+    let timestamp = loop {
+        let low = timer.timerawl.read().bits();
+        let hi1 = timer.timerawh.read().bits();
+        if hi0 == hi1 {
+            break (u64::from(hi0) << 32) | u64::from(low);
+        }
+        hi0 = hi1;
+    };
+    TimerInstantU64::from_ticks(timestamp)
+}
 /// Timer peripheral
 pub struct Timer {
     timer: TIMER,
@@ -24,6 +36,7 @@ pub struct Timer {
 impl Timer {
     /// Create a new [`Timer`]
     pub fn new(timer: TIMER, resets: &mut RESETS) -> Self {
+        timer.reset_bring_down(resets);
         timer.reset_bring_up(resets);
         Self {
             timer,
@@ -32,16 +45,8 @@ impl Timer {
     }
 
     /// Get the current counter value.
-    pub fn get_counter(&self) -> u64 {
-        let mut hi0 = self.timer.timerawh.read().bits();
-        loop {
-            let low = self.timer.timerawl.read().bits();
-            let hi1 = self.timer.timerawh.read().bits();
-            if hi0 == hi1 {
-                break (u64::from(hi0) << 32) | u64::from(low);
-            }
-            hi0 = hi1;
-        }
+    pub fn get_counter(&self) -> TimerInstantU64<1_000_000> {
+        get_counter(&self.timer)
     }
 
     /// Get the value of the least significant word of the counter.
@@ -136,13 +141,14 @@ impl embedded_hal::timer::CountDown for CountDown<'_> {
         self.next_end = Some(
             self.timer
                 .get_counter()
+                .ticks()
                 .wrapping_add(self.period.to_micros()),
         );
     }
 
     fn wait(&mut self) -> nb::Result<(), void::Void> {
         if let Some(end) = self.next_end {
-            let ts = self.timer.get_counter();
+            let ts = self.timer.get_counter().ticks();
             if ts >= end {
                 self.next_end = Some(end.wrapping_add(self.period.to_micros()));
                 Ok(())
@@ -197,6 +203,20 @@ pub trait Alarm {
     fn schedule<const NOM: u32, const DENOM: u32>(
         &mut self,
         countdown: Duration<u32, NOM, DENOM>,
+    ) -> Result<(), ScheduleAlarmError>;
+
+    /// Schedule the alarm to be finished at `timestamp`. If [enable_interrupt] is called,
+    /// this will trigger interrupt whenever the time stamp is reached.
+    ///
+    /// The RP2040 has been observed to take a little while to schedule an alarm. For this
+    /// reason, the minimum time that this function accepts is `10.micros()`
+    /// The RP2040 only uses the least significant word of the counter therefore limiting the
+    /// alarm to at most `u32::max_value().micros()` in the future.
+    ///
+    /// [enable_interrupt]: #method.enable_interrupt
+    fn schedule_at<const FREQ_HZ: u32>(
+        &mut self,
+        timestamp: TimerInstantU64<FREQ_HZ>,
     ) -> Result<(), ScheduleAlarmError>;
 
     /// Return true if this alarm is finished.
@@ -289,6 +309,32 @@ macro_rules! impl_alarm {
                 }
             }
 
+            fn schedule_at<const FREQ_HZ: u32>(
+                &mut self,
+                timestamp: TimerInstantU64<FREQ_HZ>,
+            ) -> Result<(), ScheduleAlarmError> {
+                const MIN_MICROSECONDS: u64 = 10;
+                let timestamp = timestamp.ticks();
+
+                cortex_m::interrupt::free(|_| {
+                    // safety: This is a read action and should not have any UB
+                    let now = get_counter(unsafe { &*TIMER::ptr() });
+                    let duration = timestamp.saturating_sub(now.ticks());
+
+                    if duration > u32::max_value().into() {
+                        Err(ScheduleAlarmError::AlarmTooLate)
+                    } else if duration < MIN_MICROSECONDS {
+                        Err(ScheduleAlarmError::AlarmTooSoon)
+                    } else {
+                        // safety: This is the only code in the codebase that accesses memory address $timer_alarm
+                        unsafe { &*TIMER::ptr() }
+                            .$timer_alarm
+                            .write(|w| unsafe { w.bits((timestamp & 0xFFFF_FFFF) as u32) });
+                        Ok(())
+                    }
+                })
+            }
+
             /// Return true if this alarm is finished.
             fn finished(&self) -> bool {
                 // safety: This is a read action and should not have any UB
@@ -305,6 +351,8 @@ macro_rules! impl_alarm {
 pub enum ScheduleAlarmError {
     /// Alarm time is too low. Should be at least 10 microseconds.
     AlarmTooSoon,
+    /// Alarm time is too high. Should not be more than `u32::max_value()` in the future.
+    AlarmTooLate,
 }
 
 impl_alarm!(Alarm0 {

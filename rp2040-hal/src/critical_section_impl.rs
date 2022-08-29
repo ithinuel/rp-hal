@@ -79,6 +79,7 @@ impl RpSpinlockCs {
                     cortex_m::interrupt::enable();
                 }
             }
+
             // If we broke out of the loop we have just acquired the lock
             // As the outermost loop, we want to return the interrupt status to restore later
             interrupts_active as _

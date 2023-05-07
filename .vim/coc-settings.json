@@ -1,0 +1,3 @@
+{
+    "rust-analyzer.cargo.features": ["eh1_0_alpha"]
+}

@@ -13,3 +13,4 @@ rp2040-hal = { path = "./rp2040-hal" }
 
 [patch.crates-io]
 rp2040-hal = { path = "./rp2040-hal" }
+pio = { path = "../../../pio-rs" }

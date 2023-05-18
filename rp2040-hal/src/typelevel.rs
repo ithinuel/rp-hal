@@ -17,6 +17,8 @@ pub(crate) use private::Sealed;
 impl<A: Sealed, B: Sealed> Sealed for (A, B) {}
 impl<A: Sealed, B: Sealed, C: Sealed> Sealed for (A, B, C) {}
 impl<A: Sealed, B: Sealed, C: Sealed, D: Sealed> Sealed for (A, B, C, D) {}
+impl<A: Sealed, B: Sealed> Sealed for frunk::HCons<A, B> {}
+impl Sealed for frunk::HNil {}
 
 impl Sealed for frunk::HNil {}
 impl<H: Sealed, T: Sealed> Sealed for frunk::HCons<H, T> {}
@@ -95,4 +97,38 @@ pub struct OptionTSome<T>(pub T);
 impl<T> Sealed for OptionTSome<T> {}
 impl<T> OptionT for OptionTSome<T> {
     const IS_SOME: bool = true;
+}
+
+// ====================================================================
+// Type level number (helps work around some generic const limitations)
+// ====================================================================
+
+/// Type-level `enum` for Unsined Integers
+pub trait Number: Sealed {
+    /// Value-level of this unsigned integer.
+    const N: usize;
+}
+/// Zero
+pub enum N0 {}
+impl Sealed for N0 {}
+impl Number for N0 {
+    const N: usize = 0;
+}
+/// One
+pub enum N1 {}
+impl Sealed for N1 {}
+impl Number for N1 {
+    const N: usize = 1;
+}
+/// Two
+pub enum N2 {}
+impl Sealed for N2 {}
+impl Number for N2 {
+    const N: usize = 2;
+}
+/// Three
+pub enum N3 {}
+impl Sealed for N3 {}
+impl Number for N3 {
+    const N: usize = 3;
 }

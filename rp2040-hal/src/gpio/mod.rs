@@ -1078,7 +1078,6 @@ pub use bank0::Pins;
 /// [type class]: crate::typelevel#type-classes
 pub trait AnyPin: Sealed
 where
-    Self: typelevel::Sealed,
     Self: typelevel::Is<Type = SpecificPin<Self>>,
 {
     /// [`PinId`] of the corresponding [`Pin`]

@@ -64,17 +64,14 @@ fn main() -> ! {
     let (int, frac) = (256, 0);
 
     let installed = pio.install(&program.program).unwrap();
-    let (mut sm0, _, _) = rp2040_hal::pio::PIOBuilder::from_program(
-        // Safety: We won't uninstall the program, ever
-        unsafe { installed.share() },
-    )
-    .set_pins(pin0, 1)
-    .clock_divisor_fixed_point(int, frac)
-    .build(sm0);
+    let (mut sm0, _, _) = rp2040_hal::pio::PioBuilder::from_program(&installed)
+        .set_pins(pin0, 1)
+        .clock_divisor_fixed_point(int, frac)
+        .build(sm0);
     // The GPIO pin needs to be configured as an output.
     sm0.set_pindirs([(pin0, hal::pio::PinDir::Output)]);
 
-    let (mut sm1, _, _) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+    let (mut sm1, _, _) = rp2040_hal::pio::PioBuilder::from_program(&installed)
         .set_pins(pin1, 1)
         .clock_divisor_fixed_point(int, frac)
         .build(sm1);
@@ -82,7 +79,9 @@ fn main() -> ! {
     sm1.set_pindirs([(pin1, hal::pio::PinDir::Output)]);
 
     // Start both SMs at the same time
-    let group = sm0.with(sm1).sync().start();
+    let mut group = sm0.with(sm1);
+    group.sync();
+    let group = group.start();
     cortex_m::asm::delay(10_000_000);
 
     // Stop both SMs at the same time

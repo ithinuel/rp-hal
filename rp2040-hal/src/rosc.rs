@@ -12,12 +12,10 @@ pub trait State: Sealed {}
 pub struct Disabled;
 
 /// ROSC is initialized, ie we've given parameters (typestate)
+/// ROSC is in dormant mode (see Chapter 2, Section 17, §7)
 pub struct Enabled {
     freq_hz: HertzU32,
 }
-
-/// ROSC is in dormant mode (see Chapter 2, Section 17, §7)
-pub struct Dormant;
 
 impl State for Disabled {}
 impl Sealed for Disabled {}

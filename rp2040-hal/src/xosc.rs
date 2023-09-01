@@ -2,10 +2,10 @@
 // See [Chapter 2 Section 16](https://datasheets.raspberrypi.org/rp2040/rp2040_datasheet.pdf) for more details
 
 use core::convert::TryInto;
-use core::{convert::Infallible, ops::RangeInclusive};
+use core::ops::RangeInclusive;
 
 use fugit::HertzU32;
-use nb::Error::WouldBlock;
+use nb::Error::{Other, WouldBlock};
 
 use crate::{pac::XOSC, typelevel::Sealed};
 
@@ -15,9 +15,11 @@ pub trait State: Sealed {}
 /// XOSC is disabled (typestate)
 pub struct Disabled;
 
-/// XOSC is initialized, ie we've given parameters (typestate)
-pub struct Initialized {
+/// XOSC is initialized, ie we've given parameters (typestate) but hasn't stabilized yet.
+/// This also happen when exiting from dormant mode (see Chapter 2, Section 16, §5).
+pub struct Unstable {
     freq_hz: HertzU32,
+    stabilized: bool,
 }
 
 /// Stable state (typestate)
@@ -25,17 +27,12 @@ pub struct Stable {
     freq_hz: HertzU32,
 }
 
-/// XOSC is in dormant mode (see Chapter 2, Section 16, §5)
-pub struct Dormant;
-
 impl State for Disabled {}
 impl Sealed for Disabled {}
-impl State for Initialized {}
-impl Sealed for Initialized {}
+impl State for Unstable {}
+impl Sealed for Unstable {}
 impl State for Stable {}
 impl Sealed for Stable {}
-impl State for Dormant {}
-impl Sealed for Dormant {}
 
 /// Possible errors when initializing the CrystalOscillator
 #[derive(Debug)]
@@ -91,7 +88,7 @@ impl CrystalOscillator<Disabled> {
     }
 
     /// Initializes the XOSC : frequency range is set, startup delay is calculated and set.
-    pub fn initialize(self, frequency: HertzU32) -> Result<CrystalOscillator<Initialized>, Error> {
+    pub fn initialize(self, frequency: HertzU32) -> Result<CrystalOscillator<Unstable>, Error> {
         const ALLOWED_FREQUENCY_RANGE: RangeInclusive<HertzU32> =
             HertzU32::MHz(1)..=HertzU32::MHz(15);
         //1 ms = 10e-3 sec and Freq = 1/T where T is in seconds so 1ms converts to 1000Hz
@@ -126,23 +123,37 @@ impl CrystalOscillator<Disabled> {
             w
         });
 
-        Ok(self.transition(Initialized { freq_hz: frequency }))
+        Ok(self.transition(Unstable {
+            freq_hz: frequency,
+            stabilized: false,
+        }))
     }
 }
 
 /// A token that's given when the oscillator is stablilzed, and can be exchanged to proceed to the next stage.
-pub struct StableOscillatorToken {
-    _private: (),
-}
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct StableOscillatorToken(());
 
-impl CrystalOscillator<Initialized> {
+/// Error returned when the stabilization token has already been issued.
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct StableOscillatorTokenAlreadyIssuedError(());
+
+impl CrystalOscillator<Unstable> {
     /// One has to wait for the startup delay before using the oscillator, ie awaiting stablilzation of the XOSC
-    pub fn await_stabilization(&self) -> nb::Result<StableOscillatorToken, Infallible> {
+    pub fn await_stabilization(
+        &mut self,
+    ) -> nb::Result<StableOscillatorToken, StableOscillatorTokenAlreadyIssuedError> {
+        if self.state.stabilized {
+            return Err(Other(StableOscillatorTokenAlreadyIssuedError(())));
+        }
         if self.device.status.read().stable().bit_is_clear() {
             return Err(WouldBlock);
         }
+        self.state.stabilized = true;
 
-        Ok(StableOscillatorToken { _private: () })
+        Ok(StableOscillatorToken(()))
     }
 
     /// Returns the stablilzed oscillator
@@ -175,7 +186,7 @@ impl CrystalOscillator<Stable> {
     /// PLLs must be stopped and IRQs have to be properly configured.
     /// This method does not do any of that, it merely switches the XOSC to DORMANT state.
     /// See Chapter 2, Section 16, §5) for details.
-    pub unsafe fn dormant(self) -> CrystalOscillator<Dormant> {
+    pub unsafe fn dormant(self) -> CrystalOscillator<Unstable> {
         //taken from the C SDK
         const XOSC_DORMANT_VALUE: u32 = 0x636f6d61;
 
@@ -184,6 +195,10 @@ impl CrystalOscillator<Stable> {
             w
         });
 
-        self.transition(Dormant)
+        let freq_hz = self.state.freq_hz;
+        self.transition(Unstable {
+            freq_hz,
+            stabilized: false,
+        })
     }
 }

@@ -247,7 +247,7 @@ impl<P: PIOExt> PIO<P> {
                 .for_each(|(i, instr)| {
                     self.pio
                         .instr_mem(i + offset as usize)
-                        .write(|w| unsafe { w.instr_mem0().bits(instr) })
+                        .write(|w| unsafe { w.instr_mem0().bits(instr) });
                 });
             self.used_instruction_space |= Self::instruction_mask(p.code.len()) << offset;
             Ok(InstalledProgram {
@@ -630,7 +630,7 @@ impl<SM: ValidStateMachine, State> StateMachine<SM, State> {
             self.sm
                 .sm()
                 .sm_instr()
-                .write(|w| w.sm0_instr().bits(instruction))
+                .write(|w| w.sm0_instr().bits(instruction));
         }
     }
 
@@ -700,7 +700,7 @@ impl<SM: ValidStateMachine, State> StateMachine<SM, State> {
             let mask = 1 << SM::id();
             // white tx fifo is not empty
             while (fstat.read().txempty().bits() & mask) == 0 {
-                sm_instr.write(|w| w.sm0_instr().bits(operands))
+                sm_instr.write(|w| w.sm0_instr().bits(operands));
             }
 
             if saved_sideset_count != 0 {
@@ -794,7 +794,7 @@ impl<SM: ValidStateMachine> StateMachine<SM, Stopped> {
                     set_low_instr
                 };
 
-                sm_instr.write(|w| w.sm0_instr().bits(instruction))
+                sm_instr.write(|w| w.sm0_instr().bits(instruction));
             }
 
             sm_pinctrl.write(|w| w.bits(saved_pin_ctrl));
@@ -846,7 +846,7 @@ impl<SM: ValidStateMachine> StateMachine<SM, Stopped> {
                     set_input_instr
                 };
 
-                sm_instr.write(|w| w.sm0_instr().bits(instruction))
+                sm_instr.write(|w| w.sm0_instr().bits(instruction));
             }
 
             sm_pinctrl.write(|w| w.bits(saved_pin_ctrl));
@@ -1366,7 +1366,7 @@ impl<SM: ValidStateMachine, RxSize: TransferSize> Rx<SM, RxSize> {
             self.block()
                 .sm(SM::id())
                 .sm_shiftctrl()
-                .modify(|_, w| w.autopush().bit(enable))
+                .modify(|_, w| w.autopush().bit(enable));
         }
     }
 
@@ -2258,7 +2258,7 @@ impl<P: PIOExt> PIOBuilder<P> {
                 w.sideset_base().bits(self.side_set_base);
                 w.set_base().bits(self.set_base);
                 w.out_base().bits(self.out_base)
-            })
+            });
         }
 
         // Restart SM and its clock

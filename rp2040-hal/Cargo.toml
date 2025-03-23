@@ -38,7 +38,7 @@ rand_core = "0.6.3"
 rp-binary-info = { version = "0.1.0", path = "../rp-binary-info" }
 rp-hal-common = {version="0.1.0", path="../rp-hal-common"}
 rp2040-hal-macros = {version = "0.1.0", path = "../rp2040-hal-macros"}
-rp2040-pac = {version = "0.6.0", features = ["critical-section"]}
+rp2040-pac = { version = "0.7.0", features = ["critical-section"] }
 usb-device = "0.3"
 vcell = "0.1"
 void = {version = "1.0.2", default-features = false}
@@ -85,7 +85,7 @@ critical-section-impl = ["critical-section/restore-state-u8"]
 chrono = ["dep:chrono"]
 
 # Implement `defmt::Format` for several types.
-defmt = ["dep:defmt"]
+defmt = ["dep:defmt", "rp2040-pac/defmt"]
 
 # Implement `rtic_monotonic::Monotonic` based on the RP2040 timer peripheral
 rtic-monotonic = ["dep:rtic-monotonic"]
@@ -98,3 +98,6 @@ i2c-write-iter = ["dep:i2c-write-iter"]
 # Requires 'rt' so that the vector table is correctly sized and therefore the
 # header is within reach of picotool.
 binary-info = ["rt", "rp-binary-info/binary-info"]
+
+[patch.crates-io]
+rp2040-pac = { path = "/home/ithinuel/Documents/rust/rp2040-pac" }

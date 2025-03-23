@@ -60,9 +60,9 @@ pub(crate) fn is_readable<D: UartDevice>(device: &D) -> bool {
 /// Default is false
 pub fn set_fifos(rb: &RegisterBlock, enable: bool) {
     if enable {
-        rb.uartlcr_h().modify(|_r, w| w.fen().set_bit())
+        rb.uartlcr_h().modify(|_r, w| w.fen().set_bit());
     } else {
-        rb.uartlcr_h().modify(|_r, w| w.fen().clear_bit())
+        rb.uartlcr_h().modify(|_r, w| w.fen().clear_bit());
     }
 }
 

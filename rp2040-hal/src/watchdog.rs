@@ -80,7 +80,7 @@ impl Watchdog {
 
         self.watchdog
             .tick()
-            .write(|w| unsafe { w.bits(WATCHDOG_TICK_ENABLE_BITS | cycles as u32) })
+            .write(|w| unsafe { w.bits(WATCHDOG_TICK_ENABLE_BITS | cycles as u32) });
     }
 
     /// Defines whether or not the watchdog timer should be paused when processor(s) are in debug mode
@@ -97,7 +97,7 @@ impl Watchdog {
                 .bit(pause)
                 .pause_jtag()
                 .bit(pause)
-        })
+        });
     }
 
     fn load_counter(&self, counter: u32) {
@@ -105,7 +105,7 @@ impl Watchdog {
     }
 
     fn enable(&self, bit: bool) {
-        self.watchdog.ctrl().write(|w| w.enable().bit(bit))
+        self.watchdog.ctrl().write(|w| w.enable().bit(bit));
     }
 
     /// Read a scratch register
@@ -149,7 +149,7 @@ impl Watchdog {
             ScratchRegister::Scratch7 => {
                 self.watchdog.scratch7().write(|w| unsafe { w.bits(value) })
             }
-        }
+        };
     }
 
     /// Configure which hardware will be reset by the watchdog

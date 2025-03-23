@@ -378,9 +378,11 @@ impl Adc {
 
     /// Enable free-running mode by setting the start_many flag.
     pub fn free_running(&mut self, pin: &dyn AdcChannel) {
-        self.device
-            .cs()
-            .modify(|_, w| w.ainsel().variant(pin.channel()).start_many().set_bit());
+        self.device.cs().modify(|_, w| {
+            unsafe { w.ainsel().bits(pin.channel()) }
+                .start_many()
+                .set_bit()
+        });
     }
 
     /// Disable free-running mode by unsetting the start_many flag.

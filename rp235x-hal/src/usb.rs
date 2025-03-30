@@ -46,7 +46,7 @@ struct Endpoint {
 }
 impl Endpoint {
     unsafe fn get_buf_parts(&self) -> (*mut u8, usize) {
-        const DPRAM_BASE: *mut u8 = pac::USB_DPRAM::ptr() as *mut u8;
+        const DPRAM_BASE: *mut u8 = pac::USBCTRL_DPRAM::ptr() as *mut u8;
         if self.ep_type == EndpointType::Control {
             (DPRAM_BASE.offset(0x100), self.max_packet_size as usize)
         } else {
@@ -77,8 +77,8 @@ impl Endpoint {
 }
 
 struct Inner {
-    ctrl_reg: pac::USB,
-    ctrl_dpram: pac::USB_DPRAM,
+    ctrl_reg: pac::USBCTRL_REGS,
+    ctrl_dpram: pac::USBCTRL_DPRAM,
     in_endpoints: [Option<Endpoint>; 16],
     out_endpoints: [Option<Endpoint>; 16],
     next_offset: u16,
@@ -86,7 +86,7 @@ struct Inner {
     pll: UsbClock,
 }
 impl Inner {
-    fn new(ctrl_reg: pac::USB, ctrl_dpram: pac::USB_DPRAM, pll: UsbClock) -> Self {
+    fn new(ctrl_reg: pac::USBCTRL_REGS, ctrl_dpram: pac::USBCTRL_DPRAM, pll: UsbClock) -> Self {
         Self {
             ctrl_reg,
             ctrl_dpram,
@@ -201,7 +201,7 @@ impl Inner {
         .enumerate()
         .filter_map(|(i, ep)| ep.as_ref().map(|ep| (i, ep)))
         {
-            use crate::pac::usb_dpram::ep_control::ENDPOINT_TYPE_A;
+            use crate::pac::usbctrl_dpram::ep_control::ENDPOINT_TYPE_A;
             let ep_type = match ep.ep_type {
                 EndpointType::Bulk => ENDPOINT_TYPE_A::BULK,
                 EndpointType::Isochronous { .. } => ENDPOINT_TYPE_A::ISOCHRONOUS,
@@ -280,7 +280,7 @@ impl Inner {
             // the OUT packet will be either data or a status zlp
             let len = 8;
             let ep_buf =
-                unsafe { core::slice::from_raw_parts(pac::USB_DPRAM::ptr() as *const u8, len) };
+                unsafe { core::slice::from_raw_parts(pac::USBCTRL_DPRAM::ptr() as *const u8, len) };
             if len > buf.len() {
                 return Err(UsbError::BufferOverflow);
             }
@@ -353,8 +353,8 @@ pub struct UsbBus {
 impl UsbBus {
     /// Create new usb bus struct and bring up usb as device.
     pub fn new(
-        ctrl_reg: pac::USB,
-        ctrl_dpram: pac::USB_DPRAM,
+        ctrl_reg: pac::USBCTRL_REGS,
+        ctrl_dpram: pac::USBCTRL_DPRAM,
         pll: UsbClock,
         force_vbus_detect_bit: bool,
         resets: &mut pac::RESETS,
@@ -364,11 +364,13 @@ impl UsbBus {
 
         unsafe {
             let raw_ctrl_reg =
-                core::slice::from_raw_parts_mut(pac::USB::ptr() as *mut u32, 1 + 0x98 / 4);
+                core::slice::from_raw_parts_mut(pac::USBCTRL_REGS::ptr() as *mut u32, 1 + 0x98 / 4);
             raw_ctrl_reg.fill(0);
 
-            let raw_ctrl_pdram =
-                core::slice::from_raw_parts_mut(pac::USB_DPRAM::ptr() as *mut u32, 1 + 0xfc / 4);
+            let raw_ctrl_pdram = core::slice::from_raw_parts_mut(
+                pac::USBCTRL_DPRAM::ptr() as *mut u32,
+                1 + 0xfc / 4,
+            );
             raw_ctrl_pdram.fill(0);
         }
 
@@ -406,7 +408,10 @@ impl UsbBus {
     }
 
     /// Stop and free the Usb resources
-    pub fn free(self, resets: &mut pac::RESETS) -> (pac::USB, pac::USB_DPRAM, UsbClock) {
+    pub fn free(
+        self,
+        resets: &mut pac::RESETS,
+    ) -> (pac::USBCTRL_REGS, pac::USBCTRL_DPRAM, UsbClock) {
         critical_section::with(|_cs| {
             let inner = self.inner.into_inner().into_inner();
 

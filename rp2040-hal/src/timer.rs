@@ -14,7 +14,7 @@ use fugit::{MicrosDurationU32, MicrosDurationU64, TimerInstantU64};
 use crate::{
     atomic_register_access::{write_bitmask_clear, write_bitmask_set},
     clocks::ClocksManager,
-    pac::{self, RESETS, TIMER0 as TIMER},
+    pac::{self, RESETS, TIMER},
     resets::SubsystemReset,
     typelevel::Sealed,
 };
@@ -39,8 +39,8 @@ fn release_alarm(mask: u8) {
 
 /// Timer peripheral
 //
-// This struct logically wraps a `pac::TIMER0`, but doesn't actually store it:
-// As after initialization all accesses are read-only anyways, the `pac::TIMER0` can
+// This struct logically wraps a `pac::TIMER`, but doesn't actually store it:
+// As after initialization all accesses are read-only anyways, the `pac::TIMER` can
 // be summoned unsafely instead. This allows timer to be cloned.
 //
 // (Alarms do use write operations, but they are local to the respective alarm, and
@@ -84,7 +84,7 @@ impl Timer {
     /// Get the value of the least significant word of the counter.
     pub fn get_counter_low(&self) -> u32 {
         // Safety: Only used for reading current timer value
-        unsafe { &*pac::TIMER0::PTR }.timerawl().read().bits()
+        unsafe { &*pac::TIMER::PTR }.timerawl().read().bits()
     }
 
     /// Initialized a Count Down instance without starting it.
@@ -313,7 +313,7 @@ macro_rules! impl_alarm {
             fn schedule_internal(&mut self, timestamp: Instant) -> Result<(), ScheduleAlarmError> {
                 let timestamp_low = (timestamp.ticks() & 0xFFFF_FFFF) as u32;
                 // Safety: Only used to access bits belonging exclusively to this alarm
-                let timer = unsafe { &*pac::TIMER0::PTR };
+                let timer = unsafe { &*pac::TIMER::PTR };
 
                 // This lock is for time-criticality
                 cortex_m::interrupt::free(|_| {
@@ -354,7 +354,7 @@ macro_rules! impl_alarm {
                 // Only one instance of this alarm index can exist, and only this alarm interacts with this bit
                 // of the TIMER.inte register
                 unsafe {
-                    let timer = &(*pac::TIMER0::ptr());
+                    let timer = &(*pac::TIMER::ptr());
                     crate::atomic_register_access::write_bitmask_clear(
                         timer.intf().as_ptr(),
                         $armed_bit_mask,
@@ -377,7 +377,7 @@ macro_rules! impl_alarm {
                 // Only one instance of this alarm can exist, and only this alarm interacts with this bit
                 // of the TIMER.inte register
                 unsafe {
-                    let timer = &(*pac::TIMER0::ptr());
+                    let timer = &(*pac::TIMER::ptr());
                     let reg = (&timer.inte()).as_ptr();
                     write_bitmask_set(reg, $armed_bit_mask);
                 }
@@ -389,7 +389,7 @@ macro_rules! impl_alarm {
                 // Only one instance of this alarm can exist, and only this alarm interacts with this bit
                 // of the TIMER.inte register
                 unsafe {
-                    let timer = &(*pac::TIMER0::ptr());
+                    let timer = &(*pac::TIMER::ptr());
                     let reg = (&timer.inte()).as_ptr();
                     write_bitmask_clear(reg, $armed_bit_mask);
                 }

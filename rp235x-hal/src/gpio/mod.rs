@@ -482,7 +482,7 @@ impl<I: PinId, F: func::Function, P: PullType> Pin<I, F, P> {
             OutputDriveStrength::EightMilliAmps => DRIVE_A::_8M_A,
             OutputDriveStrength::TwelveMilliAmps => DRIVE_A::_12M_A,
         };
-        self.id.pad_ctrl().modify(|_, w| w.drive().variant(variant))
+        self.id.pad_ctrl().modify(|_, w| w.drive().variant(variant));
     }
 
     /// Get the slew rate for the pin.

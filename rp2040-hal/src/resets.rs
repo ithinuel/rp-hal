@@ -29,7 +29,7 @@ macro_rules! generate_reset {
 generate_reset!(USBCTRL_REGS, usbctrl);
 generate_reset!(UART1, uart1);
 generate_reset!(UART0, uart0);
-generate_reset!(TIMER0, timer);
+generate_reset!(TIMER, timer);
 generate_reset!(TBMAN, tbman);
 generate_reset!(SYSINFO, sysinfo);
 generate_reset!(SYSCFG, syscfg);

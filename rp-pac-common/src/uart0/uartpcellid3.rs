@@ -1,0 +1,29 @@
+/// Register `UARTPCELLID3` reader
+pub type R = crate::register_blocks::R<UARTPCELLID3_SPEC>;
+/// Field `UARTPCELLID3` reader - These bits read back as 0xB1
+pub type UARTPCELLID3_R = crate::register_blocks::FieldReader;
+impl R {
+    /// Bits 0:7 - These bits read back as 0xB1
+    #[inline(always)]
+    pub fn uartpcellid3(&self) -> UARTPCELLID3_R {
+        UARTPCELLID3_R::new((self.bits & 0xff) as u8)
+    }
+}
+impl core::fmt::Debug for R {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("UARTPCELLID3")
+            .field("uartpcellid3", &self.uartpcellid3())
+            .finish()
+    }
+}
+/// UARTPCellID3 Register  /// /// You can [`read`](crate::register_blocks::Reg::read) this register and get [`uartpcellid3::R`](R). See [API](https://docs.rs/svd2rust/#read--modify--write-api).
+pub struct UARTPCELLID3_SPEC;
+impl crate::register_blocks::RegisterSpec for UARTPCELLID3_SPEC {
+    type Ux = u32;
+}
+/// `read()` method returns [`uartpcellid3::R`](R) reader structure
+impl crate::register_blocks::Readable for UARTPCELLID3_SPEC {}
+/// `reset()` method sets UARTPCELLID3 to value 0xb1
+impl crate::register_blocks::Resettable for UARTPCELLID3_SPEC {
+    const RESET_VALUE: u32 = 0xb1;
+}

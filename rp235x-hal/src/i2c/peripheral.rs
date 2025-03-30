@@ -157,7 +157,7 @@ fn unmask_intr(i2c: &RegisterBlock) {
 /// SAFETY: Takes a non-mutable reference to RegisterBlock but mutates its `ic_intr_mask` register.
 unsafe fn mask_intr(i2c: &RegisterBlock) {
     // 0 is a valid value and means all flag masked.
-    unsafe { i2c.ic_intr_mask().write_with_zero(|w| w) }
+    unsafe { i2c.ic_intr_mask().write_with_zero(|w| w) };
 }
 
 impl<T: Deref<Target = RegisterBlock>, PINS> I2C<T, PINS, Peripheral> {

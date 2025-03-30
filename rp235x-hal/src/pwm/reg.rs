@@ -22,12 +22,12 @@ pub(super) unsafe trait RegisterInterface {
 
     #[inline]
     fn advance_phase(&mut self) {
-        self.ch().csr().modify(|_, w| w.ph_adv().set_bit())
+        self.ch().csr().modify(|_, w| w.ph_adv().set_bit());
     }
 
     #[inline]
     fn retard_phase(&mut self) {
-        self.ch().csr().modify(|_, w| w.ph_ret().set_bit())
+        self.ch().csr().modify(|_, w| w.ph_ret().set_bit());
     }
 
     #[inline]
@@ -37,7 +37,7 @@ pub(super) unsafe trait RegisterInterface {
             DynSliceMode::InputHighRunning => w.divmode().level(),
             DynSliceMode::CountRisingEdge => w.divmode().rise(),
             DynSliceMode::CountFallingEdge => w.divmode().fall(),
-        })
+        });
     }
 
     #[inline]

@@ -1,0 +1,17 @@
+[package]
+authors = ["The rp-rs Developers"]
+description = "Shared PAC code for the Raspberry Pi microcontrollers"
+edition = "2021"
+homepage = "https://github.com/rp-rs/rp-hal"
+license = "MIT OR Apache-2.0"
+name = "rp-pac-common"
+repository = "https://github.com/rp-rs/rp-hal"
+rust-version = "1.79"
+version = "0.1.0"
+
+# DO NOT LIST ANY PAC CRATES OR ARCHITECTURE CRATES HERE
+[dependencies]
+cortex-m = "0.7.3"
+critical-section = { optional = true, version = "1.0.0" }
+defmt = { version = "0.3.10", optional = true }
+vcell = "0.1.3"

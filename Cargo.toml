@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+  "rp-pac-common/Cargo.toml",
+  "rp-hal-common/Cargo.toml",
+  "rp2040-hal",
+  "rp235x-hal",
+]
+exclude = ["on-target-tests"]
+
+[patch.'https://github.com/rp-rs/rp-hal.git']
+rp2040-hal = { path = "./rp2040-hal" }
+rp235x-hal = { path = "./rp235x-hal" }
+
+[patch.crates-io]
+rp2040-hal = { path = "./rp2040-hal" }
+rp235x-hal = { path = "./rp235x-hal" }
+#rp2040-pac = { git = "https://github.com/ithinuel/rp2040-pac", branch = "factorize-hals" }
+#rp235x-pac = { git = "https://github.com/ithinuel/rp235x-pac", branch = "factorize-hals" }
+rp2040-pac = { path = "/home/ithinuel/Documents/rust/rp2040-pac" }
+rp235x-pac = { path = "/home/ithinuel/Documents/rust/rp235x-pac" }

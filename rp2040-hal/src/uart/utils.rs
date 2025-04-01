@@ -17,19 +17,10 @@ pub enum Error {
 /// State of the UART Peripheral.
 pub trait State: Sealed {}
 
-/// Trait to handle both underlying devices (UART0 & UART1)
-pub trait UartDevice: Deref<Target = RegisterBlock> + SubsystemReset + Sealed + 'static {
-    /// Index of the Uart.
-    const ID: usize;
-
-    /// The DREQ number for which TX DMA requests are triggered.
-    fn tx_dreq() -> u8
-    where
-        Self: Sized;
-    /// The DREQ number for which RX DMA requests are triggered.
-    fn rx_dreq() -> u8
-    where
-        Self: Sized;
+unsafe impl rp_hal_common::uart::UartBlock for UART0 {
+    fn ptr() -> *const rp_pac_common::uart::RegisterBlock {
+        UART0::ptr()
+    }
 }
 
 impl UartDevice for UART0 {

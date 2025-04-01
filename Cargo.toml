@@ -1,11 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-  "rp-pac-common/Cargo.toml",
-  "rp-hal-common/Cargo.toml",
-  "rp2040-hal",
-  "rp235x-hal",
-]
+members = ["rp-pac-common", "rp-hal-common", "rp2040-hal", "rp235x-hal"]
 exclude = ["on-target-tests"]
 
 [patch.'https://github.com/rp-rs/rp-hal.git']

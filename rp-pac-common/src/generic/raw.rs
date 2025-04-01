@@ -1,18 +1,10 @@
 use super::{marker, BitM, FieldSpec, RegisterSpec, Unsafe, Writable};
-pub trait MyRDebug: RegisterSpec + Sized {
-    fn fmt(this: &R<Self>, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result;
-}
 pub struct R<REG: RegisterSpec> {
     pub(crate) bits: REG::Ux,
     pub(super) _reg: marker::PhantomData<REG>,
 }
-impl<Reg: RegisterSpec + MyRDebug> core::fmt::Debug for R<Reg> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Reg::fmt(self, f)
-    }
-}
 pub struct W<REG: RegisterSpec> {
-    /// Writable bits
+    #[doc = "Writable bits"]
     pub(crate) bits: REG::Ux,
     pub(super) _reg: marker::PhantomData<REG>,
 }
@@ -24,7 +16,7 @@ where
     _reg: marker::PhantomData<FI>,
 }
 impl<FI: FieldSpec> FieldReader<FI> {
-    ///  Creates a new instance of the reader.
+    #[doc = " Creates a new instance of the reader."]
     #[allow(unused)]
     #[inline(always)]
     pub(crate) const fn new(bits: FI::Ux) -> Self {
@@ -39,7 +31,7 @@ pub struct BitReader<FI = bool> {
     _reg: marker::PhantomData<FI>,
 }
 impl<FI> BitReader<FI> {
-    ///  Creates a new instance of the reader.
+    #[doc = " Creates a new instance of the reader."]
     #[allow(unused)]
     #[inline(always)]
     pub(crate) const fn new(bits: bool) -> Self {
@@ -64,7 +56,7 @@ where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
 {
-    ///  Creates a new instance of the writer
+    #[doc = " Creates a new instance of the writer"]
     #[allow(unused)]
     #[inline(always)]
     pub(crate) fn new(w: &'a mut W<REG>, o: u8) -> Self {
@@ -90,7 +82,7 @@ where
     REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
-    ///  Creates a new instance of the writer
+    #[doc = " Creates a new instance of the writer"]
     #[allow(unused)]
     #[inline(always)]
     pub(crate) fn new(w: &'a mut W<REG>, o: u8) -> Self {

@@ -2,6 +2,6 @@
 #![allow(non_camel_case_types)]
 
 mod generic;
-pub mod uart0;
+pub mod uart;
 
 pub use generic::*;

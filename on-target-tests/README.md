@@ -2,11 +2,11 @@
 
 This project is for running tests of rp2040-hal against real hardware via knurling-rs tools
 
-Adding a test:  
+Adding a test:
 - Add a new Rust program to tests (eg tests/my-new-test.rs)
 - Add a new [[test]] to the Cargo.toml
 
-Running all tests:  
+Running all tests:
 Linux (and any other Unix-likes where probe-rs are supported):
 ```system
 cd on-target-tests
@@ -49,4 +49,3 @@ license. Our Apache 2.0 notices can be found in [`NOTICE`](./NOTICE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
-

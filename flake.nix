@@ -65,6 +65,7 @@
             check-merge-conflicts.enable = true;
             check-yaml.enable = true;
             detect-private-keys.enable = true;
+            end-of-file-fixer.enable = true;
           };
         };
       in

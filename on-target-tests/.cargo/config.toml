@@ -56,4 +56,3 @@ rustflags = [
     "-C", "link-arg=-Tdefmt.x",
     "-C", "target-cpu=cortex-m33",
 ]
-

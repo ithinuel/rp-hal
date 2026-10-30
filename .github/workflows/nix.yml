@@ -1,0 +1,18 @@
+on: [push, pull_request]
+name: Check nix flake
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: Check flake
+        run: nix flake check --locked
+      - name: Build dev shell
+        run: nix build .#devShells.x86_64-linux.default
+      - name: Build rp2040-hal in the dev shell
+        run: nix develop .#default -c cargo build --manifest-path rp2040-hal/Cargo.toml --target thumbv6m-none-eabi
+      - name: Build rp235x-hal on Arm in the dev shell
+        run: nix develop .#default -c cargo build --manifest-path rp235x-hal/Cargo.toml --target thumbv8m.main-none-eabihf
+      - name: Build rp235x-hal on RISC-V in the dev shell
+        run: nix develop .#default -c cargo build --manifest-path rp235x-hal/Cargo.toml --target riscv32imac-unknown-none-elf
